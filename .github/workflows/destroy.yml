@@ -1,0 +1,73 @@
+name: Destroy Platform Infrastructure
+run-name: Destroy Platform in ${{ inputs.environment }} by @${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type DESTROY to confirm deletion"
+        required: true
+      environment:
+        description: "Environment to destroy"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - prod
+      reason:
+        description: "Reason for manual destroy"
+        required: false
+        default: "Manual trigger via GitHub UI"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  S3_STATE_BUCKET_NAME: ${{ vars.S3_STATE_BUCKET_NAME }}
+  DYNAMODB_LOCK_TABLE: ${{ vars.DYNAMODB_LOCK_TABLE }}
+  TERRAFORM_DIR: "./terraform"
+
+jobs:
+  destroy_platform:
+    name: Destroy Platform
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Validate Confirmation
+        if: ${{ inputs.confirmation != 'DESTROY' }}
+        run: |
+          echo "Error: You must type 'DESTROY' to confirm deletion."
+          exit 1
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials (OIDC Login)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-destroy-platform-${{ github.sha }}
+
+      - name: Terraform Init
+        run: |
+          TERRAFORM_KEY="platform/${{ inputs.environment }}/terraform.tfstate"
+          terraform init \
+            -backend-config="bucket=${{ env.S3_STATE_BUCKET_NAME }}" \
+            -backend-config="dynamodb_table=${{ env.DYNAMODB_LOCK_TABLE }}" \
+            -backend-config="key=$TERRAFORM_KEY"
+        working-directory: ${{ env.TERRAFORM_DIR }}
+
+      - name: Terraform Destroy
+        run: |
+          terraform destroy -auto-approve \
+            -var="aws_region=${{ env.AWS_REGION }}" \
+            -var="environment=${{ inputs.environment }}"
+        working-directory: ${{ env.TERRAFORM_DIR }}
