@@ -17,6 +17,18 @@ on:
           - dev
           - staging
           - prod
+      enable_ecs:
+        description: "Enable ECS Cluster (Free)"
+        type: boolean
+        default: true
+      enable_alb:
+        description: "Enable Application Load Balancer ($$$)"
+        type: boolean
+        default: true
+      enable_nat_gateway:
+        description: "Enable NAT Gateway ($$$)"
+        type: boolean
+        default: true
 
 permissions:
   id-token: write
@@ -61,5 +73,8 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="aws_region=${{ env.AWS_REGION }}" \
-            -var="environment=${{ inputs.environment }}"
+            -var="environment=${{ inputs.environment }}" \
+            -var="enable_ecs=${{ inputs.enable_ecs }}" \
+            -var="enable_alb=${{ inputs.enable_alb }}" \
+            -var="enable_nat_gateway=${{ inputs.enable_nat_gateway }}"
         working-directory: ${{ env.TERRAFORM_DIR }}

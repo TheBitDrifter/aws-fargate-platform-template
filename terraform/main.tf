@@ -49,6 +49,24 @@ variable "environment" {
   type        = string
 }
 
+variable "enable_ecs" {
+  description = "Enable ECS Cluster"
+  type        = bool
+  default     = true
+}
+
+variable "enable_alb" {
+  description = "Enable Application Load Balancer"
+  type        = bool
+  default     = true
+}
+
+variable "enable_nat_gateway" {
+  description = "Enable NAT Gateway"
+  type        = bool
+  default     = true
+}
+
 module "platform" {
   # References the platform module via Git
   source = "git::https://github.com/TheBitDrifter/terraform-aws-fargate-platform.git?ref=main"
@@ -61,6 +79,10 @@ module "platform" {
   public_subnets     = ["10.0.101.0/24", "10.0.102.0/24"]
   private_subnets    = ["10.0.1.0/24", "10.0.2.0/24"]
   availability_zones = 2
+
+  enable_ecs         = var.enable_ecs
+  enable_alb         = var.enable_alb
+  enable_nat_gateway = var.enable_nat_gateway
 }
 
 # Re-export outputs for easy access
